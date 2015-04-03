@@ -59,7 +59,6 @@ def run(test, params, env):
 
     clone_status_error = "yes" == params.get("clone_status_error", "no")
     wipe_status_error = "yes" == params.get("wipe_status_error", "no")
-    setup_libvirt_polkit = "yes" == params.get("setup_libvirt_polkit")
 
     # libvirt acl polkit related params
     uri = params.get("virsh_uri")
@@ -69,7 +68,7 @@ def run(test, params, env):
             unpri_user = 'testacl'
 
     if not libvirt_version.version_compare(1, 1, 1):
-        if setup_libvirt_polkit:
+        if params.get('setup_libvirt_polkit') == 'yes':
             raise error.TestNAError("API acl test not supported in current"
                                     " libvirt version.")
 
@@ -122,22 +121,13 @@ def run(test, params, env):
         if vol_info["Type"] == "block" and clone_option.count("prealloc-metadata"):
             clone_status_error = True
 
-        if pool_type == "disk":
-            new_vol_name = libvirt.new_disk_vol_name(pool_name)
-            if new_vol_name is None:
-                raise error.TestError("Fail to generate volume name")
-            # update polkit rule as the volume name changed
-            if setup_libvirt_polkit:
-                vol_pat = r"lookup\('vol_name'\) == ('\S+')"
-                new_value = "lookup('vol_name') == '%s'" % new_vol_name
-                libvirt.update_polkit_rule(params, vol_pat, new_value)
         # Clone volume
         clone_result = virsh.vol_clone(vol_name, new_vol_name, pool_name,
                                        clone_option, debug=True)
         if not clone_status_error:
             if clone_result.exit_status != 0:
                 raise error.TestFail("Clone volume fail:\n%s" %
-                                     clone_result.stderr.strip())
+                                     clone_result.stdout.strip())
             else:
                 vol_info = libv_vol.volume_info(new_vol_name)
                 for key in vol_info:
@@ -150,11 +140,8 @@ def run(test, params, env):
                 wipe_result = virsh.vol_wipe(new_vol_name, pool_name, alg,
                                              unprivileged_user=unpri_user,
                                              uri=uri, debug=True)
-                unsupported_err = ["Unsupported algorithm", "no such pattern sequence"]
                 if not wipe_status_error:
                     if wipe_result.exit_status != 0:
-                        if any(err in wipe_result.stderr for err in unsupported_err):
-                            raise error.TestNAError(wipe_result.stderr)
                         raise error.TestFail("Wipe volume fail:\n%s" %
                                              clone_result.stdout.strip())
                     else:

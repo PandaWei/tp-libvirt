@@ -1,7 +1,6 @@
 import os
 import logging
 from autotest.client.shared import error
-from virttest import libvirt_storage
 from virttest import virsh
 
 
@@ -53,7 +52,3 @@ def run(test, params, env):
                                  % status)
         else:
             logging.info('Succeed to create pool %s', pool_name)
-    # Clean up
-    libvirt_pool = libvirt_storage.StoragePool()
-    if libvirt_pool.pool_exists(pool_name):
-        libvirt_pool.delete_pool(pool_name)

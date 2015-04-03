@@ -7,7 +7,6 @@ from virttest import libvirt_storage
 from virttest import virsh
 from virttest.utils_test import libvirt as utlv
 from virttest.staging import service
-from provider import libvirt_version
 
 
 def run(test, params, env):
@@ -61,11 +60,6 @@ def run(test, params, env):
     status_error = "yes" == params.get("status_error", "no")
     vol_path = os.path.join(pool_target, vol_name)
     ip_protocal = params.get('ip_protocal', 'ipv4')
-
-    if not libvirt_version.version_compare(1, 0, 0):
-        if pool_type == "gluster":
-            raise error.TestNAError("Gluster pool is not supported in current"
-                                    " libvirt version.")
 
     def check_exit_status(result, expect_error=False):
         """
@@ -286,20 +280,17 @@ def run(test, params, env):
             check_vol_list(vol_name, pool_name)
 
         # Step (20)
-        # Create an over size vol in pool(expect fail), then check pool:
+        # Create a over size vol in pool(expect fail), then check pool:
         # 'Capacity', 'Allocation' and 'Available'
-        # For NFS type pool, there's a bug(BZ#1077068) about allocate volume,
-        # and glusterfs pool not support create volume, so not test them
-        if pool_type != "netfs":
-            vol_capacity = "10000G"
-            vol_allocation = "10000G"
-            result = virsh.vol_create_as("oversize_vol", pool_name,
-                                         vol_capacity, vol_allocation, "raw")
-            check_exit_status(result, True)
-            new_info = _pool.pool_info(pool_name)
-            check_pool_info(pool_info, "Capacity", new_info['Capacity'])
-            check_pool_info(pool_info, "Allocation", new_info['Allocation'])
-            check_pool_info(pool_info, "Available", new_info['Available'])
+        vol_capacity = "10000G"
+        vol_allocation = "10000G"
+        result = virsh.vol_create_as("oversize_vol", pool_name,
+                                     vol_capacity, vol_allocation, "raw")
+        check_exit_status(result, True)
+        new_pool_info = _pool.pool_info(pool_name)
+        check_pool_info(pool_info, "Capacity", new_pool_info['Capacity'])
+        check_pool_info(pool_info, "Allocation", new_pool_info['Allocation'])
+        check_pool_info(pool_info, "Available", new_pool_info['Available'])
 
         # Step (21)
         # Undefine pool, this should fail as the pool is active
@@ -343,5 +334,3 @@ def run(test, params, env):
             logging.error(str(detail))
         if multipathd_status:
             multipathd.start()
-        if os.path.exists(pool_xml):
-            os.remove(pool_xml)
