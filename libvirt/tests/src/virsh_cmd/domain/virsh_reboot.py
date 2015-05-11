@@ -37,12 +37,16 @@ def run(test, params, env):
     xml_backup = vm_xml.VMXML.new_from_inactive_dumpxml(vm_name)
     try:
         # Add or remove qemu-agent from guest before test
-        try:
-            vm.prepare_guest_agent(channel=agent, start=agent)
-        except virt_vm.VMError, e:
-            logging.debug(e)
-            # qemu-guest-agent is not available on REHL5
-            raise error.TestNAError("qemu-guest-agent package is not available")
+        if mode == "agent":
+            try:
+                vm.prepare_guest_agent(channel=agent, start=agent)
+            except virt_vm.VMError, e:
+                logging.debug(e)
+                # qemu-guest-agent is not available on REHL5
+                raise error.TestNAError("qemu-guest-agent package is not available")
+        else:
+            # start VM without preparing qemu-guest-agent
+            vm.start()
 
         if pre_domian_status == "shutoff":
             virsh.destroy(vm_name)
